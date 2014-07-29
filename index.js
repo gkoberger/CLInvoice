@@ -1,15 +1,30 @@
 #!/usr/bin/env node
 
+/* TODO:
+ * Check for wkhtmltopdf, throw warning if they don't have it
+ * Taxes?
+ * Validate input
+ * Colorize everything
+ * Better output
+ * Multiple items, proper multiplication of hours
+ * "UPDATE" option
+ */
+
 var path = require('path')
   , fs = require('fs')
 
   , prompt = require('readline-sync')
   , async = require('async')
   , mkdirp = require('mkdirp')
+  , jade = require('jade')
+  , wkhtml = require('node-wkhtml')
+  , phantom = require('phantom')
   , _ = require('lodash')
+
 
 var config = false;
 var template_info = {};
+var details = {};
 
 var absPath = function(p) {
   if(p.substr(0, 1) != '/' && p.substr(0, 1) != '~') {
@@ -118,10 +133,16 @@ async.series([
 
       console.log('');
       console.log('Information about you or your company:');
-      template_info.company_name = prompt.question('Name: ');
-      template_info.company_address = prompt.question('Address (use "/" for newline): ');
-      template_info.company_phone = prompt.question('Phone Number: ');
-      template_info.company_email = prompt.question('Email Address: ');
+      template_info.company = {};
+      template_info.company.name = prompt.question('Name: ');
+      template_info.company.address = prompt.question('Address (use "/" for newline): ');
+      template_info.company.phone = prompt.question('Phone Number: ');
+      template_info.company.web = prompt.question('Web Address: ');
+      template_info.company.email = prompt.question('Email Address: ');
+
+      if(template_info.company.address) {
+        template_info.company.address = template_info.company.address.split(/\s+\/\s+/g);
+      }
 
       console.log('');
       console.log('Payment types:');
@@ -138,7 +159,7 @@ async.series([
       }
       template_info.payment.credit = formatBool(prompt.question('Credit Card (via ribbon.co) accepted? (y/n): '));
       if(template_info.payment.credit) {
-        template_info.payment.credit_ribbon = prompt.question('Ribbon.co username for credit cards: ');
+        template_info.payment.credit_ribbon = prompt.question('[Credit Card] Ribbon.co username: ');
       }
 
       template_info.payment.due = parseInt(prompt.question('Must be paid within N days: (blank = no due date) '));
@@ -148,13 +169,16 @@ async.series([
       mkdirp(save_to, function(err) { 
         if(err) next(err);
 
-        fs.writeFile(path.join(save_to, "settings.json"), JSON.stringify(template_info, undefined, 2), function(err) {
-          if(err) next(err);
+        // Copy over template
+        fs.writeFileSync(path.join(save_to, 'template.jade'), fs.readFileSync(path.join(__dirname, 'templates', 'basic.jade')));
 
-          console.log("");
-          console.log("New template created in " + save_to);
-          next();
-        });
+        // Save settings
+        fs.writeFileSync(path.join(save_to, "settings.json"), JSON.stringify(template_info, undefined, 2));
+
+        console.log("");
+        console.log("New template created in " + save_to);
+        next();
+
       });
     } else {
       var load_from = path.join(config.dir, templates[template-1], 'settings.json');
@@ -168,63 +192,74 @@ async.series([
   },
 
   /* Create the invoice! */
+  function(next) {
+    console.log("");
+
+    details = { invoice_company : {} };
+    details.invoice_id = parseInt(Math.random() * 10000) + "-test-something";
+    details.invoice_company.name = prompt.question('Who are you invoicing (company or name): ');
+    details.invoice_company.contact = prompt.question('Who is your contact (optional person name): ');
+    details.description = prompt.question('Short Description (for your personal records only): ');
+    details.full_description = prompt.question('Full Description (shown on invoice): ');
+
+    console.log("");
+    console.log("Invoice items");
+    details.items = [{}];
+    details.items[0].name = prompt.question('Item Name: ');
+    details.items[0].quantity = prompt.question('Hours / Quantity: x');
+    details.items[0].rate = prompt.question('Rate / Price: $');
+
+    var save_to = path.join(config.dir, template_info.dir, details.invoice_id);
+    mkdirp(save_to, function(err) { 
+      if(err) next(err);
+
+      // Save invoice details
+      fs.writeFileSync(path.join(save_to, "invoice.json"), JSON.stringify(details, undefined, 2));
+
+      // Compile a function
+      var fn = jade.compileFile(path.join(config.dir, template_info.dir, 'template.jade'), {});
+      var vars = {
+        template_url: path.join(config.dir, template_info.dir),
+      }
+      var locals = _.assign(template_info, details, vars);
+      var html = fn(locals);
+
+      // Save HTML
+      fs.writeFileSync(path.join(save_to, "invoice.html"), html);
+
+      next();
+    });
+  },
+
+  /* Generate PDF */
+  function(next) {
+
+    var load_from = path.join(config.dir, template_info.dir, details.invoice_id);
+    console.log(load_from);
+
+    wkhtml
+      .spawn('pdf', path.join(load_from, "invoice.html"))
+      .stdout.pipe(fs.createWriteStream(path.join(load_from, 'invoice.pdf')));
+
+    console.log("Outputting to", path.join(load_from, 'invoice.pdf'));
+
+    /*
+    phantom.create(function(ph){
+      ph.createPage(function(page) {
+        page.set('paperSize', {
+          format: 'A4'
+        }, function() {
+          page.open(path.join(load_from, "invoice.html"), function(status) {
+            page.render(path.join(load_from, 'invoice.pdf'), function(){
+              console.log('Page Rendered');
+              ph.exit();
+              next();
+            });
+          });
+        });
+      });
+    });
+    */
+  },
 
 ]);
-
-
-//var prompt = require('prompt')
-  //, async = require('async')
-
-  /*
-var prompt = require('sync-prompt').prompt;
-
-prompt.message = "[invoicer]"
-prompt.delimiter = " "
-
-// Start the prompt
-prompt.start();
-
-//
-// Get two properties from the user: username and password
-//
-prompt.get([{
-    name: 'username',
-    required: true
-  }, {
-    name: 'password',
-    hidden: true,
-    conform: function (value) {
-      return true;
-    }
-  }], function (err, result) {
-
-    invoiceLoop(function() {
-      // Log the results.
-      console.log('Command-line input received:');
-      console.log('  username: ' + result.username);
-      console.log('  password: ' + result.password);
-    });
-});
-
-function invoiceLoop(cb) {
-  prompt.get([{
-    name: 'Item Description',
-  }, {
-    name: 'Quantity (hours)',
-  },
-  {
-    name: 'Unit price (per hour)',
-  }], function (err, r) {
-
-    if(!r.name) {
-
-    invoiceLoop(function() {
-      // Log the results.
-      console.log('Command-line input received:');
-      console.log('  username: ' + result.username);
-      console.log('  password: ' + result.password);
-    });
-  });
-  cb();
-}
-*/

@@ -1,0 +1,201 @@
+doctype html
+html(lang="en")
+  head
+    meta(charset="utf-8")
+    title= "test"
+
+    style
+      :stylus
+        body
+          margin 50px 0
+          font-family "Open Sans", Helvetica, sans-serif
+        #invoice
+          max-width 1000px
+          margin 0px auto
+        header
+          display table
+          width 100%
+          .row
+            display table-row
+            .cell
+              display table-cell
+              vertical-align middle
+              padding-right 50px
+              font-size 14px
+              color #999
+              strong
+                font-size 18px
+                color #333
+                span
+                  color #999
+                  font-weight 200
+            .invoice-cell
+              vertical-align top
+              text-align right
+              padding-right 0
+              strong
+                font-size 60px
+                font-weight 200
+              div
+                font-size 30px
+                font-weight 200
+          .logo-cell
+            width 1px
+          .logo
+            max-width 200px
+            max-height 150px
+        hr
+          height 10px
+          border 0 none
+          background-color #ddd
+          margin 40px 0
+          border-radius 3px
+
+        .co
+          margin 0
+          color #AAA
+
+        table.invoice
+          width 100%
+          margin-top 50px
+          border-collapse collapse
+          th
+            border-bottom 2px solid #777
+            padding 8px
+            font-weight bold
+            text-align left
+            font-size 12px
+            text-transform uppercase
+            &.num
+              text-align right
+          td
+            padding 8px
+            border-bottom 1px solid #BBB
+            color #555
+            font-weight 200
+            &.num
+              text-align right
+          tr.total
+            td
+              border-bottom 0 none
+              &.label
+                text-align right
+              &.total
+                color #333
+                font-weight bold
+        .details
+          display table
+          h2
+            text-transform uppercase
+            font-size 15px
+          .row
+            display table-row
+            .cell
+              display table-cell
+          p
+            font-size 14px
+            line-height 1.5em
+            color #777
+            a, span, strong
+              color #333
+              font-weight normal
+              text-decoration none
+          .payment
+            table
+              margin-right 50px
+              th
+                padding-right 15px
+                color #333
+                text-align left
+                font-size 13px
+                white-space nowrap
+              td
+                color #999
+                white-space nowrap
+                font-size 13px
+                span, a
+                  color #444
+                  text-decoration none
+
+  body
+    #invoice
+      header
+        .row
+          .cell.logo-cell
+            img.logo(src="#{template_url}/logo.png")
+          .cell
+            div
+              strong= company.name
+            if company.address
+              for a in company.address
+                div= a
+            br
+            if company.web
+              div= company.web
+            if company.phone
+              div= company.phone
+            if company.email
+              div= company.email
+
+          .cell.invoice-cell
+            strong INVOICE 
+            div #3243929
+
+      hr(style="background-color:#{color}")
+
+      if invoice_company.name
+        strong= invoice_company.name
+      if invoice_company.contact
+        p.co c/o #{invoice_company.contact}
+      p= full_description
+
+      table.invoice
+        tr
+          th(style="color:#{color}") Item
+          th.num(style="color:#{color}") Quantity
+          th.num(style="color:#{color}") Cost
+          th.num(style="color:#{color}") Subtotal
+        for item in items
+          tr
+            td= item.name
+            td.num= item.quantity
+            td.num $#{(item.rate * 1).toFixed(2)}
+            td.num $#{(item.rate * item.quantity).toFixed(2)}
+        tr.total
+          td(colspan=3).label Total
+          td.total.num $#{(items[0].rate * items[0].quantity).toFixed(2)}
+
+      hr(style="background-color:#{color}")
+
+      .details
+        .row
+          .cell.payment
+            h2(style="color:#{color}") Payment
+            if payment.due
+            p
+              em This invoice is due <strong>#{payment.due} days</strong> from the invoice date.
+            table
+              if payment.check
+                tr 
+                  th Check
+                  td Make out to <span>#{company.name}</span>
+              if payment.direct
+                tr
+                  th Direct Deposit
+                  td Routing: <span>#{payment.direct_routing}</span> &middot; Account: <span>#{payment.direct_account}</span>
+              if payment.paypal
+                tr
+                  th PayPal
+                  td Send payments to <span>#{company.email}</span>
+              if payment.credit
+                tr
+                  th Credit Card
+                  td Enter details at <a href="http://ribbon.co/#{payment.credit_ribbon}/#{(items[0].rate * items[0].quantity).toFixed(2)}">http://ribbon.co/#{payment.credit_ribbon}</a>
+
+          .cell
+            h2(style="color:#{color}") Thank You
+            p 
+              | Your business is appreciated. If you have any questions, please contact via email at <strong><a href="mailto:#{company.email}">gkoberger@gmail.com</a></strong> 
+              if company.phone
+                | or via phone at <strong>#{company.phone}</strong>
+
