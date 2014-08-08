@@ -8,6 +8,7 @@
  * Better output
  * Multiple items, proper multiplication of hours
  * "UPDATE" option
+ * Make sure it doesn't use any globally installed packages
  */
 
 var path = require('path')
@@ -20,7 +21,6 @@ var path = require('path')
   , wkhtml = require('node-wkhtml')
   , phantom = require('phantom')
   , _ = require('lodash')
-
 
 var config = false;
 var template_info = {};
@@ -40,6 +40,12 @@ var absPath = function(p) {
 var formatBool = function(bool) {
   return (bool.substr(0).toLowerCase() == "y")
 };
+
+var pad = function(n, width, z) {
+  z = z || '0';
+  n = n + '';
+  return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+}
 
 var formatInt = function(i) {
   var i = parseInt(i);
@@ -74,7 +80,7 @@ async.series([
     config = {};
 
     // Welcome message
-    console.log("Welcome to Invoicer! Since this is your first time, we're going to set up a config file at ~/.invoicer");
+    console.log("Welcome to CLInvoice! Since this is your first time, we're going to set up a config file at ~/.invoicer");
     console.log("");
 
     // Prompt for the invoice directory
@@ -141,7 +147,7 @@ async.series([
       template_info.company.email = prompt.question('Email Address: ');
 
       if(template_info.company.address) {
-        template_info.company.address = template_info.company.address.split(/\s+\/\s+/g);
+        template_info.company.address = template_info.company.address.split(/\s*\/\s*/g);
       }
 
       console.log('');
@@ -171,6 +177,7 @@ async.series([
 
         // Copy over template
         fs.writeFileSync(path.join(save_to, 'template.jade'), fs.readFileSync(path.join(__dirname, 'templates', 'basic.jade')));
+        fs.writeFileSync(path.join(save_to, 'logo.png'), fs.readFileSync(path.join(__dirname, 'templates', 'logo.png')));
 
         // Save settings
         fs.writeFileSync(path.join(save_to, "settings.json"), JSON.stringify(template_info, undefined, 2));
@@ -196,11 +203,26 @@ async.series([
     console.log("");
 
     details = { invoice_company : {} };
-    details.invoice_id = parseInt(Math.random() * 10000) + "-test-something";
+
     details.invoice_company.name = prompt.question('Who are you invoicing (company or name): ');
     details.invoice_company.contact = prompt.question('Who is your contact (optional person name): ');
-    details.description = prompt.question('Short Description (for your personal records only): ');
     details.full_description = prompt.question('Full Description (shown on invoice): ');
+
+    var date = new Date();
+    details.date = date.getFullYear() + '-' + pad(date.getMonth() + 1, 2) + '-' + pad(date.getDate(), 2);
+    details.company_slug = details.invoice_company.name.toLowerCase().replace(/\s+/g, '-').replace(/[^-_a-z0-9]/g, '');
+    details.invoice_id = details.date + '-' + details.company_slug;
+    details.invoice_num = details.date + '-' + 0;
+
+
+    var base_i = 0;
+    while(fs.existsSync(path.join(config.dir, template_info.dir, details.invoice_id))) {
+      base_i++;
+      details.invoice_id = details.date + '-' + base_i + '-' + details.company_slug;
+      details.invoice_num = details.date + '-' + base_i;
+    }
+
+    details.invoice_num = details.invoice_num.replace(/-/g, '');
 
     console.log("");
     console.log("Invoice items");

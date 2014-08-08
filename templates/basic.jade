@@ -139,7 +139,7 @@ html(lang="en")
 
           .cell.invoice-cell
             strong INVOICE 
-            div #3243929
+            div ##{invoice_num}
 
       hr(style="background-color:#{color}")
 
@@ -147,7 +147,9 @@ html(lang="en")
         strong= invoice_company.name
       if invoice_company.contact
         p.co c/o #{invoice_company.contact}
-      p= full_description
+
+      if full_description
+        p= full_description
 
       table.invoice
         tr
@@ -195,7 +197,7 @@ html(lang="en")
           .cell
             h2(style="color:#{color}") Thank You
             p 
-              | Your business is appreciated. If you have any questions, please contact via email at <strong><a href="mailto:#{company.email}">gkoberger@gmail.com</a></strong> 
+              | Your business is appreciated. If you have any questions, please contact via email at <strong><a href="mailto:#{company.email}">#{company.email}</a></strong> 
               if company.phone
                 | or via phone at <strong>#{company.phone}</strong>
 
