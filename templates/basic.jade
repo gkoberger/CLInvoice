@@ -165,7 +165,7 @@ html(lang="en")
             td.num $#{(item.rate * item.quantity).toFixed(2)}
         tr.total
           td(colspan=3).label Total
-          td.total.num $#{(items[0].rate * items[0].quantity).toFixed(2)}
+          td.total.num $#{total.toFixed(2)}
 
       hr(style="background-color:#{color}")
 

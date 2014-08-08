@@ -3,12 +3,14 @@
 /* TODO:
  * Check for wkhtmltopdf, throw warning if they don't have it
  * Taxes?
+ * Better naming of files
  * Validate input
  * Colorize everything
  * Better output
  * Multiple items, proper multiplication of hours
  * "UPDATE" option
  * Make sure it doesn't use any globally installed packages
+ * If folder has been deleted, recreate it.
  */
 
 var path = require('path')
@@ -226,10 +228,23 @@ async.series([
 
     console.log("");
     console.log("Invoice items");
-    details.items = [{}];
-    details.items[0].name = prompt.question('Item Name: ');
-    details.items[0].quantity = prompt.question('Hours / Quantity: x');
-    details.items[0].rate = prompt.question('Rate / Price: $');
+    details.items = [];
+
+    var more_items = true;
+    details.total = 0;
+    while(more_items) {
+      var item = {};
+      item.name = prompt.question('Item Name (blank to skip): ');
+      if(item.name) {
+        item.quantity = prompt.question('Hours / Quantity: x');
+        item.rate = prompt.question('Rate / Price: $');
+        console.log("");
+        details.items.push(item);
+        details.total += (item.quantity * item.rate);
+      } else {
+        more_items = false;
+      }
+    }
 
     var save_to = path.join(config.dir, template_info.dir, details.invoice_id);
     mkdirp(save_to, function(err) { 
