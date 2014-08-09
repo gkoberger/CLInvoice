@@ -4,7 +4,6 @@
  * Check for wkhtmltopdf, throw warning if they don't have it
  * Validate input
  * "UPDATE" option
- * Make sure it doesn't use any globally installed packages
  */
 
 var path = require('path')
