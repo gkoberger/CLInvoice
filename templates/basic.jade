@@ -161,15 +161,15 @@ html(lang="en")
           tr
             td= item.name
             td.num= item.quantity
-            td.num $#{(item.rate * 1).toFixed(2)}
-            td.num $#{(item.rate * item.quantity).toFixed(2)}
+            td.num $#{item.rate}
+            td.num $#{item.total}
         if taxes > 0
           tr.total
             td(colspan=3).label Taxes (#{taxes}%)
-            td.total.num $#{(tax_amount).toFixed(2)}
+            td.total.num $#{tax_amount}
         tr.total
           td(colspan=3).label Total
-          td.total.num $#{total.toFixed(2)}
+          td.total.num $#{total}
 
       hr(style="background-color:#{color}")
 

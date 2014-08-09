@@ -3,11 +3,8 @@
 /* TODO:
  * Check for wkhtmltopdf, throw warning if they don't have it
  * Validate input
- * Colorize everything
- * proper multiplication of hours (3:30 vs 3.30)
  * "UPDATE" option
  * Make sure it doesn't use any globally installed packages
- * If folder has been deleted, recreate it.
  */
 
 var path = require('path')
@@ -26,6 +23,14 @@ var path = require('path')
 var config = false;
 var template_info = {};
 var details = {};
+
+var multiplyTime = function(quantity, rate) {
+  var i = quantity.match(/([0-9]+):([0-9]+)/)
+  if(i) {
+    quantity = (parseFloat(i[2]) / 60) + parseFloat(i[1])
+  }
+  return (parseFloat(quantity) * parseFloat(rate)).toFixed(2);
+};
 
 var absPath = function(p) {
   if(p.substr(0, 1) != '/' && p.substr(0, 1) != '~') {
@@ -64,7 +69,7 @@ async.series([
 
   /* Load the config */
   function(next) {
-    fs.readFile(absPath('~/.invoicer'), 'utf8', function (err, data) {
+    fs.readFile(absPath('~/.clinvoice'), 'utf8', function (err, data) {
       if (!err) {
         config = JSON.parse(data);
       }
@@ -74,14 +79,14 @@ async.series([
 
   /* If no config, set one up */
   function(next) {
-    if(config) { // We already have a config file set up
+    if(config && fs.existsSync(config.dir)) { // We already have a config file set up
       return next();
     }
 
     config = {};
 
     // Welcome message
-    console.log("Welcome to CLInvoice! Since this is your first time, we're going to set up a config file at ~/.invoicer");
+    console.log("Welcome to CLInvoice! Since this is your first time, we're going to set up a config file at ~/.clinvoice");
     console.log("");
 
     // Prompt for the invoice directory
@@ -96,10 +101,10 @@ async.series([
     config.dir = absPath(config.dir)
     
     // Save JSON file
-    fs.writeFile(absPath("~/.invoicer"), JSON.stringify(config, undefined, 2), function(err) {
+    fs.writeFile(absPath("~/.clinvoice"), JSON.stringify(config, undefined, 2), function(err) {
       if(err) next(err);
 
-      console.log('Created config file at ~/.invoicer');
+      console.log('Created config file at ~/.clinvoice');
 
       // Create directory
       mkdirp(config.dir, function(err) { 
@@ -170,7 +175,7 @@ async.series([
       }
 
       template_info.payment.due = parseInt(prompt.question('Must be paid within N days: (blank = no due date) '.grey));
-      template_info.taxes = parseInt(prompt.question('Taxes? (0%) '.grey));
+      template_info.taxes = parseFloat(prompt.question('Taxes? (0%) '.grey));
 
       // Save settings to settings.json
       var save_to = path.join(config.dir, template_info.dir);
@@ -238,19 +243,24 @@ async.series([
       var item = {};
       item.name = prompt.question('Item Name (blank to skip): '.grey);
       if(item.name) {
-        item.quantity = prompt.question('Hours / Quantity: '.grey, 'x');
-        item.rate = prompt.question('Rate / Price: '.grey, '$');
-        console.log("");
+        item.quantity = prompt.question(('Hours / Quantity: '.grey));
+        item.rate = parseFloat(prompt.question(('Rate / Price: '.grey) + ' $'));
+        item.total = multiplyTime(item.quantity, item.rate);
+        console.log("Item total", item.total);
+
         details.items.push(item);
-        details.total += (item.quantity * item.rate);
+        details.total += parseFloat(item.total);
+
+        console.log("");
       } else {
         more_items = false;
       }
     }
 
-    details.tax_amount = details.total * (template_info.taxes / 100);
-    details.total += details.tax_amount;
+    details.tax_amount = (details.total * (template_info.taxes / 100)).toFixed(2);
+    details.total += parseFloat(details.tax_amount);
 
+    details.total = details.total.toFixed(2);
     
     var save_to = path.join(config.dir, template_info.dir, details.invoice_id);
     mkdirp(save_to, function(err) { 
