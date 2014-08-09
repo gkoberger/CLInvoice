@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/gkoberger/invoicer"
+    "url": "git://github.com/gkoberger/CLInvoice"
   },
   "keywords": [
     "invoice"
@@ -16,9 +16,9 @@
   "author": "Gregory Koberger",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/gkoberger/invoicer/issues"
+    "url": "https://github.com/gkoberger/CLInvoice/issues"
   },
-  "homepage": "https://github.com/gkoberger/invoicer",
+  "homepage": "https://github.com/gkoberger/CLInvoice",
   "dependencies": {
     "async": "^0.9.0",
     "colors": "^0.6.2",
