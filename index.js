@@ -2,12 +2,9 @@
 
 /* TODO:
  * Check for wkhtmltopdf, throw warning if they don't have it
- * Taxes?
- * Better naming of files
  * Validate input
  * Colorize everything
- * Better output
- * Multiple items, proper multiplication of hours
+ * proper multiplication of hours (3:30 vs 3.30)
  * "UPDATE" option
  * Make sure it doesn't use any globally installed packages
  * If folder has been deleted, recreate it.
@@ -16,12 +13,14 @@
 var path = require('path')
   , fs = require('fs')
 
+  , open = require('open')
   , prompt = require('readline-sync')
   , async = require('async')
   , mkdirp = require('mkdirp')
   , jade = require('jade')
   , wkhtml = require('node-wkhtml')
   , phantom = require('phantom')
+  , colors = require('colors')
   , _ = require('lodash')
 
 var config = false;
@@ -121,9 +120,9 @@ async.series([
     if(templates.length > 0) {
 
       console.log("Current templates:");
-      console.log(" [0] Create New");
+      console.log(" [0] Create New".grey);
       _.each(templates, function(v, k) {
-        console.log(" [" + (k+1) + "] " + v);
+        console.log((" [" + (k+1) + "] " + v).grey);
       });
 
       template = formatInt(prompt.question('Choose a template: '));
@@ -134,19 +133,19 @@ async.series([
       console.log('');
       console.log('Create a new template:');
 
-      template_info.name = prompt.question('Template name: ');
-      template_info.color = prompt.question('Template highlight color: (#777) ');
+      template_info.name = prompt.question('Template name: '.grey);
+      template_info.color = prompt.question('Template highlight color: (#777) '.grey);
 
       template_info.dir = template_info.name.replace(/\s+/g, '-').replace(/[^-_a-zA-Z0-9]/).toLowerCase()
 
       console.log('');
       console.log('Information about you or your company:');
       template_info.company = {};
-      template_info.company.name = prompt.question('Name: ');
-      template_info.company.address = prompt.question('Address (use "/" for newline): ');
-      template_info.company.phone = prompt.question('Phone Number: ');
-      template_info.company.web = prompt.question('Web Address: ');
-      template_info.company.email = prompt.question('Email Address: ');
+      template_info.company.name = prompt.question('Name: '.grey);
+      template_info.company.address = prompt.question('Address (use "/" for newline): '.grey);
+      template_info.company.phone = prompt.question('Phone Number: '.grey);
+      template_info.company.web = prompt.question('Web Address: '.grey);
+      template_info.company.email = prompt.question('Email Address: '.grey);
 
       if(template_info.company.address) {
         template_info.company.address = template_info.company.address.split(/\s*\/\s*/g);
@@ -155,22 +154,23 @@ async.series([
       console.log('');
       console.log('Payment types:');
       template_info.payment = {};
-      template_info.payment.check = formatBool(prompt.question('Mailed checks accepted? (y/n): '));
+      template_info.payment.check = formatBool(prompt.question('Mailed checks accepted? (y/n): '.grey));
       if(template_info.company_email) {
-        template_info.payment.paypal = formatBool(prompt.question('PayPay to '+template_info.company_email+' accepted? (y/n): '));
+        template_info.payment.paypal = formatBool(prompt.question('PayPay to '+template_info.company_email+' accepted? (y/n): '.grey));
       }
 
-      template_info.payment.direct = formatBool(prompt.question('Direct deposit accepted? (y/n): '));
+      template_info.payment.direct = formatBool(prompt.question('Direct deposit accepted? (y/n): '.grey));
       if(template_info.payment.direct) {
-        template_info.payment.direct_routing = prompt.question('[Direct Deposit] Routing Number: ');
-        template_info.payment.direct_account = prompt.question('[Direct Deposit] Account Number: ');
+        template_info.payment.direct_routing = prompt.question('[Direct Deposit] Routing Number: '.grey);
+        template_info.payment.direct_account = prompt.question('[Direct Deposit] Account Number: '.grey);
       }
-      template_info.payment.credit = formatBool(prompt.question('Credit Card (via ribbon.co) accepted? (y/n): '));
+      template_info.payment.credit = formatBool(prompt.question('Credit Card (via ribbon.co) accepted? (y/n): '.grey));
       if(template_info.payment.credit) {
-        template_info.payment.credit_ribbon = prompt.question('[Credit Card] Ribbon.co username: ');
+        template_info.payment.credit_ribbon = prompt.question('[Credit Card] Ribbon.co username: '.grey);
       }
 
-      template_info.payment.due = parseInt(prompt.question('Must be paid within N days: (blank = no due date) '));
+      template_info.payment.due = parseInt(prompt.question('Must be paid within N days: (blank = no due date) '.grey));
+      template_info.taxes = parseInt(prompt.question('Taxes? (0%) '.grey));
 
       // Save settings to settings.json
       var save_to = path.join(config.dir, template_info.dir);
@@ -203,17 +203,19 @@ async.series([
   /* Create the invoice! */
   function(next) {
     console.log("");
+    console.log("Invoice Details");
 
     details = { invoice_company : {} };
 
-    details.invoice_company.name = prompt.question('Who are you invoicing (company or name): ');
-    details.invoice_company.contact = prompt.question('Who is your contact (optional person name): ');
-    details.full_description = prompt.question('Full Description (shown on invoice): ');
+    details.invoice_company.name = prompt.question('Who are you invoicing (company or name): '.grey);
+    details.invoice_company.contact = prompt.question('Who is your contact (optional person name): '.grey);
+    details.full_description = prompt.question('Full Description (shown on invoice): '.grey);
 
     var date = new Date();
     details.date = date.getFullYear() + '-' + pad(date.getMonth() + 1, 2) + '-' + pad(date.getDate(), 2);
     details.company_slug = details.invoice_company.name.toLowerCase().replace(/\s+/g, '-').replace(/[^-_a-z0-9]/g, '');
     details.invoice_id = details.date + '-' + details.company_slug;
+    details.invoice_name = details.date + '-' + template_info.company.name.replace(/\s+/g, '-');
     details.invoice_num = details.date + '-' + 0;
 
 
@@ -227,17 +229,17 @@ async.series([
     details.invoice_num = details.invoice_num.replace(/-/g, '');
 
     console.log("");
-    console.log("Invoice items");
+    console.log("Invoice items:");
     details.items = [];
 
     var more_items = true;
     details.total = 0;
     while(more_items) {
       var item = {};
-      item.name = prompt.question('Item Name (blank to skip): ');
+      item.name = prompt.question('Item Name (blank to skip): '.grey);
       if(item.name) {
-        item.quantity = prompt.question('Hours / Quantity: x');
-        item.rate = prompt.question('Rate / Price: $');
+        item.quantity = prompt.question('Hours / Quantity: '.grey, 'x');
+        item.rate = prompt.question('Rate / Price: '.grey, '$');
         console.log("");
         details.items.push(item);
         details.total += (item.quantity * item.rate);
@@ -246,12 +248,16 @@ async.series([
       }
     }
 
+    details.tax_amount = details.total * (template_info.taxes / 100);
+    details.total += details.tax_amount;
+
+    
     var save_to = path.join(config.dir, template_info.dir, details.invoice_id);
     mkdirp(save_to, function(err) { 
       if(err) next(err);
 
       // Save invoice details
-      fs.writeFileSync(path.join(save_to, "invoice.json"), JSON.stringify(details, undefined, 2));
+      fs.writeFileSync(path.join(save_to, details.invoice_name + ".json"), JSON.stringify(details, undefined, 2));
 
       // Compile a function
       var fn = jade.compileFile(path.join(config.dir, template_info.dir, 'template.jade'), {});
@@ -262,7 +268,7 @@ async.series([
       var html = fn(locals);
 
       // Save HTML
-      fs.writeFileSync(path.join(save_to, "invoice.html"), html);
+      fs.writeFileSync(path.join(save_to, details.invoice_name + ".html"), html);
 
       next();
     });
@@ -272,13 +278,28 @@ async.series([
   function(next) {
 
     var load_from = path.join(config.dir, template_info.dir, details.invoice_id);
-    console.log(load_from);
 
-    wkhtml
-      .spawn('pdf', path.join(load_from, "invoice.html"))
-      .stdout.pipe(fs.createWriteStream(path.join(load_from, 'invoice.pdf')));
+    var invoice_path = path.join(load_from, details.invoice_name + '.pdf');
+    var builder = wkhtml.spawn('pdf', path.join(load_from, details.invoice_name + '.html'));
+    builder.stdout.pipe(fs.createWriteStream(invoice_path));
+    console.log("Generating invoice...");
 
-    console.log("Outputting to", path.join(load_from, 'invoice.pdf'));
+    builder.on('exit', function (code) {
+      console.log("");
+      console.log("==============================");
+      console.log("Invoice generated!".green);
+      console.log("");
+      console.log("   Generated at: ", invoice_path.grey);
+      console.log("   View options at: ", path.join(load_from, details.invoice_name + '.json').grey);
+
+      /*
+      console.log("   Want to update? Edit the JSON file, and run this command:");
+      console.log("       clinvoice update " + details.invoice_id);
+      */
+
+      console.log("==============================");
+      open(invoice_path);
+    });
 
     /*
     phantom.create(function(ph){
@@ -286,8 +307,8 @@ async.series([
         page.set('paperSize', {
           format: 'A4'
         }, function() {
-          page.open(path.join(load_from, "invoice.html"), function(status) {
-            page.render(path.join(load_from, 'invoice.pdf'), function(){
+          page.open(path.join(load_from, details.invoice_name + ".html"), function(status) {
+            page.render(path.join(load_from, details.invoice_name + ".pdf"), function(){
               console.log('Page Rendered');
               ph.exit();
               next();
