@@ -3,6 +3,7 @@
 /* TODO:
  * Check for wkhtmltopdf, throw warning if they don't have it
  * Validate input
+ * Link all email addresses and URLs
  * "UPDATE" option
  */
 
@@ -15,7 +16,6 @@ var path = require('path')
   , mkdirp = require('mkdirp')
   , jade = require('jade')
   , wkhtml = require('node-wkhtml')
-  , phantom = require('phantom')
   , colors = require('colors')
   , _ = require('lodash')
 
@@ -310,23 +310,6 @@ async.series([
       open(invoice_path);
     });
 
-    /*
-    phantom.create(function(ph){
-      ph.createPage(function(page) {
-        page.set('paperSize', {
-          format: 'A4'
-        }, function() {
-          page.open(path.join(load_from, details.invoice_name + ".html"), function(status) {
-            page.render(path.join(load_from, details.invoice_name + ".pdf"), function(){
-              console.log('Page Rendered');
-              ph.exit();
-              next();
-            });
-          });
-        });
-      });
-    });
-    */
   },
 
 ]);
