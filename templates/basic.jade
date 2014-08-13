@@ -1,3 +1,5 @@
+- function currency(n) { return typeof n === 'number' ? n.toFixed() : "0.00"; }
+
 doctype html
 html(lang="en")
   head
@@ -162,14 +164,14 @@ html(lang="en")
             td= item.name
             td.num= item.quantity
             td.num $#{item.rate}
-            td.num $#{item.total}
+            td.num $#{currency(item.total)}
         if taxes > 0
           tr.total
             td(colspan=3).label Taxes (#{taxes}%)
-            td.total.num $#{tax_amount}
+            td.total.num $#{currency(tax_amount)}
         tr.total
           td(colspan=3).label Total
-          td.total.num $#{total}
+          td.total.num $#{currency(total)}
 
       hr(style="background-color:#{color}")
 
@@ -196,7 +198,7 @@ html(lang="en")
               if payment.credit
                 tr
                   th Credit Card
-                  td Enter details at <a href="http://ribbon.co/#{payment.credit_ribbon}/#{(items[0].rate * items[0].quantity).toFixed(2)}">http://ribbon.co/#{payment.credit_ribbon}</a>
+                  td Enter details at <a href="http://ribbon.co/#{payment.credit_ribbon}/#{currency(items[0].rate * items[0].quantity)}">http://ribbon.co/#{payment.credit_ribbon}</a>
 
           .cell
             h2(style="color:#{color}") Thank You

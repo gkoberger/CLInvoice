@@ -28,7 +28,7 @@ var multiplyTime = function(quantity, rate) {
   if(i) {
     quantity = (parseFloat(i[2]) / 60) + parseFloat(i[1])
   }
-  return (parseFloat(quantity) * parseFloat(rate)).toFixed(2);
+  return (parseFloat(quantity) * parseFloat(rate));
 };
 
 var absPath = function(p) {
@@ -245,7 +245,7 @@ async.series([
         item.quantity = prompt.question(('Hours / Quantity: '.grey));
         item.rate = parseFloat(prompt.question(('Rate / Price: '.grey) + ' $'));
         item.total = multiplyTime(item.quantity, item.rate);
-        console.log("Item total", item.total);
+        console.log("Item total: $" + item.total.toFixed(2));
 
         details.items.push(item);
         details.total += parseFloat(item.total);
@@ -256,10 +256,13 @@ async.series([
       }
     }
 
-    details.tax_amount = (details.total * (template_info.taxes / 100)).toFixed(2);
+    details.tax_amount = 0;
+    if(template_info.taxes) {
+      details.tax_amount = (details.total * (template_info.taxes / 100));
+    }
     details.total += parseFloat(details.tax_amount);
 
-    details.total = details.total.toFixed(2);
+    details.total = details.total;
     
     var save_to = path.join(config.dir, template_info.dir, details.invoice_id);
     mkdirp(save_to, function(err) { 
