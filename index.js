@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 /* TODO:
- * Check for wkhtmltopdf, throw warning if they don't have it
  * Validate input
  * Link all email addresses and URLs
  * "UPDATE" option
@@ -15,7 +14,6 @@ var path = require('path')
   , async = require('async')
   , mkdirp = require('mkdirp')
   , jade = require('jade')
-  , wkhtml = require('node-wkhtml')
   , colors = require('colors')
   , _ = require('lodash')
 
@@ -288,21 +286,49 @@ async.series([
 
   /* Generate PDF */
   function(next) {
+    var phantom = require('phantom') // Done here because it overrides SIGINT and breaks everything
 
-    var load_from = path.join(config.dir, template_info.dir, details.invoice_id);
+    details.load_from = path.join(config.dir, template_info.dir, details.invoice_id);
 
-    var invoice_path = path.join(load_from, details.invoice_name + '.pdf');
-    var builder = wkhtml.spawn('pdf', path.join(load_from, details.invoice_name + '.html'));
-    builder.stdout.pipe(fs.createWriteStream(invoice_path));
+    details.invoice_path = path.join(details.load_from, details.invoice_name + '.pdf');
+
     console.log("Generating invoice...");
+    console.log("");
 
-    builder.on('exit', function (code) {
+    phantom.create(function(ph){
+      ph.createPage(function(page) {
+        page.set('paperSize', {
+          format: 'A4',
+          margin: '1.5cm',
+        }, function() {
+          page.open(path.join(details.load_from, details.invoice_name + ".html"), function(status) {
+            page.render(details.invoice_path, function(){
+              console.log('Page Rendered');
+              ph.exit();
+              next();
+            });
+          });
+        });
+      });
+    });
+  },
+
+], function(err) {
+  if(err) {
+    console.log("");
+    console.log("==============================");
+    console.log("Error generating invoice.".red);
+    console.log("==============================");
+    console.log("");
+  } else {
       console.log("");
       console.log("==============================");
+      console.log("");
       console.log("Invoice generated!".green);
       console.log("");
-      console.log("   Generated at: ", invoice_path.grey);
-      console.log("   View options at: ", path.join(load_from, details.invoice_name + '.json').grey);
+      console.log("Generated at: ", details.invoice_path.grey);
+      console.log("View options at: ", path.join(details.load_from, details.invoice_name + '.json').grey);
+      console.log("");
 
       /*
       console.log("   Want to update? Edit the JSON file, and run this command:");
@@ -310,9 +336,6 @@ async.series([
       */
 
       console.log("==============================");
-      open(invoice_path);
-    });
-
-  },
-
-]);
+      open(details.invoice_path);
+  }
+});
