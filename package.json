@@ -31,6 +31,7 @@
     "open": "0.0.5",
     "phantom": "^0.6.5",
     "prompt": "^0.2.13",
-    "readline-sync": "^0.4.5"
+    "readline-sync": "^0.4.5",
+    "stylus": "^0.48.1"
   }
 }
