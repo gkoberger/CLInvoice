@@ -1,5 +1,5 @@
 {
-  "name": "CLInvoice",
+  "name": "clinvoice",
   "version": "0.0.1",
   "description": "Generate invoices from the command line",
   "main": "index.js",
@@ -13,6 +13,9 @@
   "keywords": [
     "invoice"
   ],
+  "bin": {
+    "clinvoice": "./bin/clinvoice"
+  },
   "author": "Gregory Koberger",
   "license": "ISC",
   "bugs": {
